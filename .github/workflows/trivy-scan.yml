@@ -48,7 +48,7 @@ jobs:
         </head>
         <body>
             <div class="header">
-                <h1>🔍 Trivy Security Scan Report</h1>
+                <h1> Trivy Security Scan Report</h1>
                 <p><strong>Target:</strong> OWASP Juice Shop</p>
                 <p><strong>Generated:</strong> $(date)</p>
                 <p class="success"> Security scan completed successfully</p>
