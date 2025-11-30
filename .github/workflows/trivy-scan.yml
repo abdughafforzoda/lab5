@@ -51,11 +51,11 @@ jobs:
                 <h1>🔍 Trivy Security Scan Report</h1>
                 <p><strong>Target:</strong> OWASP Juice Shop</p>
                 <p><strong>Generated:</strong> $(date)</p>
-                <p class="success">✅ Security scan completed successfully</p>
+                <p class="success"> Security scan completed successfully</p>
             </div>
             
             <div class="info">
-                <h2>📊 Scan Results</h2>
+                <h2> Scan Results</h2>
                 <p>The vulnerability scan has been completed. Detailed results are available in the following formats:</p>
                 <ul>
                     <li><strong>JSON Report:</strong> trivy-results.json (complete vulnerability data)</li>
@@ -65,7 +65,7 @@ jobs:
             </div>
             
             <div>
-                <h2>📋 Next Steps</h2>
+                <h2> Next Steps</h2>
                 <p>1. Download the JSON report for detailed vulnerability information</p>
                 <p>2. Review the SBOM for component inventory</p>
                 <p>3. Address critical and high severity vulnerabilities</p>
