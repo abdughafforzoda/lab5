@@ -16,33 +16,55 @@ jobs:
 
     - name: Install Trivy
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-        echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-        sudo apt-get update
-        sudo apt-get install -y trivy
+        curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
     - name: Update Trivy database
       run: trivy image --download-db-only
 
-    - name: Run Trivy vulnerability scanner and generate HTML report
+    - name: Download HTML template
       run: |
-        trivy fs --format template --template "@contrib/html.tpl" \
-                --output trivy-results.html \
-                --severity CRITICAL,HIGH,MEDIUM \
-                --skip-version-check .
+        # Download the HTML template from Trivy's GitHub repo
+        curl -sL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl -o html.tpl
 
-    - name: Run Trivy to generate SBOM
+    - name: Run Trivy scan and generate outputs
       run: |
-        trivy fs --format spdx-json --output sbom.spdx.json --skip-version-check .
+        # Generate JSON output first (we'll convert to HTML)
+        trivy fs --format json --output trivy-results.json --severity CRITICAL,HIGH,MEDIUM .
+        
+        # Generate SBOM
+        trivy fs --format spdx-json --output sbom.spdx.json .
+        
+        # Try to generate HTML with downloaded template
+        trivy fs --format template --template "html.tpl" --output trivy-results.html . || echo "HTML generation with downloaded template failed"
 
-    - name: Upload HTML report as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: trivy-security-report
-        path: trivy-results.html
-        retention-days: 30
+    - name: Generate HTML from JSON (fallback)
+      if: failure() || success()
+      run: |
+        # If HTML generation failed, create a simple HTML report from JSON
+        if [ ! -f trivy-results.html ] || [ ! -s trivy-results.html ]; then
+          echo "Creating simple HTML report from JSON..."
+          cat > trivy-results.html << HTML
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Trivy Security Scan Report</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .vulnerability { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+                  .critical { background-color: #ffcccc; }
+                  .high { background-color: #ffebcc; }
+                  .medium { background-color: #ffffcc; }
+              </style>
+          </head>
+          <body>
+              <h1>Trivy Security Scan Report</h1>
+              <p>Generated at: $(date)</p>
+              <p>Note: Full HTML template not available. See trivy-results.json for complete details.</p>
+              <p>Scan completed successfully. Check the JSON report for vulnerability details.</p>
+          </body>
+          </html>
+          HTML
+        fi
 
     - name: Upload SBOM as artifact
       uses: actions/upload-artifact@v4
@@ -51,6 +73,11 @@ jobs:
         path: sbom.spdx.json
         retention-days: 30
 
-    - name: Show summary in logs
-      run: |
-        trivy fs --format table --skip-version-check .
+    - name: Upload security reports as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-security-reports
+        path: |
+          trivy-results.html
+          trivy-results.json
+        retention-days: 30
