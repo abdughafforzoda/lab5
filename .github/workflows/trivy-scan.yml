@@ -14,31 +14,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Node.js (for dependency scanning)
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'  # Use Node.js 20 as required by Juice Shop
+    - name: Install Trivy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+        wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+        echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+        sudo apt-get update
+        sudo apt-get install -y trivy
 
-    - name: Install dependencies only (skip build)
-      run: npm install --no-scripts  # Install deps without running build scripts
+    - name: Update Trivy database
+      run: trivy image --download-db-only
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'template'
-        template: '@/contrib/html.tpl'
-        output: 'trivy-results.html'
-        severity: 'CRITICAL,HIGH,MEDIUM'
+    - name: Run Trivy vulnerability scanner and generate HTML report
+      run: |
+        trivy fs --format template --template "@contrib/html.tpl" \
+                --output trivy-results.html \
+                --severity CRITICAL,HIGH,MEDIUM \
+                --skip-version-check .
 
     - name: Run Trivy to generate SBOM
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'spdx-json'
-        output: 'sbom.spdx.json'
+      run: |
+        trivy fs --format spdx-json --output sbom.spdx.json --skip-version-check .
 
     - name: Upload HTML report as artifact
       uses: actions/upload-artifact@v4
@@ -55,9 +52,5 @@ jobs:
         retention-days: 30
 
     - name: Show summary in logs
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'table'
-        exit-code: 0
+      run: |
+        trivy fs --format table --skip-version-check .
