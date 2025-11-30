@@ -1,0 +1,67 @@
+name: Trivy Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build application
+      run: npm run build
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'template'
+        template: '@/contrib/html.tpl'
+        output: 'trivy-results.html'
+        severity: 'CRITICAL,HIGH,MEDIUM'
+
+    - name: Run Trivy to generate SBOM
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'spdx-json'
+        output: 'sbom.spdx.json'
+
+    - name: Upload HTML report as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-security-report
+        path: trivy-results.html
+        retention-days: 30
+
+    - name: Upload SBOM as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom
+        path: sbom.spdx.json
+        retention-days: 30
+
+    - name: Show summary in logs
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: 0
