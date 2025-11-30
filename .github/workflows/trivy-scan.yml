@@ -18,13 +18,10 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
+        # Remove the cache line since there's no lock file
 
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build application
-      run: npm run build
+    - name: Install dependencies (without lock file)
+      run: npm install
 
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
